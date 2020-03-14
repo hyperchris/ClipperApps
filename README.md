@@ -12,7 +12,7 @@ TF applications using Clipper
 ```
 git clone https://github.com/hyperchris/ClipperApps.git
 ```
-- Download these two folders, [data](https://drive.google.com/drive/folders/1M8Ct0H1IdYKnmA-PFU87st_Un0e9rWws?usp=sharing) and (checkpoints)[https://drive.google.com/drive/folders/1KInJxEvzH6eppyBDEWdhHp3GFVpN26DT?usp=sharing] under ```ClipperApps/```
+- Download these two folders, [data](https://drive.google.com/drive/folders/1M8Ct0H1IdYKnmA-PFU87st_Un0e9rWws?usp=sharing) and [checkpoints](https://drive.google.com/drive/folders/1KInJxEvzH6eppyBDEWdhHp3GFVpN26DT?usp=sharing) under ```ClipperApps/```
 - Install packages
 ```
 pip install -r requirements.txt
