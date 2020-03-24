@@ -29,17 +29,6 @@ import cv2
 import json
 import requests
 
-def clipper_query(addr, img):
-    url = "http://%s/traffic1-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
-
 
 class YOLO:
     dets = []
