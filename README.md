@@ -17,11 +17,11 @@ git clone https://github.com/hyperchris/ClipperApps.git
 ```
 pip install -r requirements.txt
 ```
-- Run the setup script 
+- Run the setup script then start Clipper. Keep Clipper in "started" status.
 ```
-sudo bash setup.sh
+sudo bash setup.sh; python clipper_start.py
 ```
-- There are three chains: face, tracking, and traffic. You can run a chain with this command
+- Open another terminal to run three chains: face, tracking, and traffic. You can run a chain with this command
 ```
 python run_tracking.py data/tracking.mp4
 ```
