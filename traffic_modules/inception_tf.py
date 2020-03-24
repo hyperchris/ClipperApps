@@ -19,17 +19,7 @@ import base64
 import cv2
 import json
 import requests
-
-def clipper_query(addr, img):
-    url = "http://%s/traffic3-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
+from clipper_start import register, predict 
 
 
 class Inception:
@@ -78,14 +68,28 @@ class Inception:
             detection_masks_reframed, 0)
       self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
+    self.clipper_model_name = 'traffic-inception'
+    self.clipper_conn = register(
+      model_name=self.clipper_model_name, 
+      sess=self.sess, 
+      func=self.run_session,
+    )
+
+  def run_session(self, imgs):
+    input = np.expand_dims(cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1), axis=0)
+    return self.sess.run(self.tensor_dict, feed_dict={self.image_tensor: input})
+
   def PreProcess(self, input):
     self.output = input
-    self.input = np.expand_dims(input['img'], axis=0)
+    self.input = [base64.encodestring(cv2.imencode('.jpg', input['img'])[1])]
+
 
   def Apply(self):
-    # Run inference
-    output_dict = self.sess.run(self.tensor_dict,
-                           feed_dict={self.image_tensor: self.input})
+    output_dict = predict(
+      conn=self.clipper_conn, 
+      model_name=self.clipper_model_name, 
+      data=self.input,
+    )
 
     # all outputs are float32 numpy arrays, so convert types as appropriate
     self.output['num_detections'] = int(output_dict['num_detections'][0])
