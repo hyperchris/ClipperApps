@@ -14,6 +14,9 @@ sys.path.insert(0, DS_HOME)
 fout = open(join(DS_HOME, 'tools/__init__.py'), 'w')
 fout.close()
 from tools.generate_detections import create_box_encoder
+import base64
+import cv2 
+from clipper_start import register, predict 
 
 '''
 Input: {'img': img_np_array, 
@@ -39,22 +42,6 @@ Output: {'img': img_np_array,
         }
 '''
 
-import base64
-import cv2 
-import json
-import requests
-
-def clipper_query(addr, img):
-    url = "http://%s/track2-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
-
     
 class FeatureExtractor:
     ds_boxes = []
@@ -62,7 +49,13 @@ class FeatureExtractor:
     features = []
 
     def Setup(self):
-        self.encoder = create_box_encoder(DEEPSORT_MODEL, batch_size=16)
+        self.encoder, self.sess = create_box_encoder(DEEPSORT_MODEL, batch_size=16)
+        self.clipper_model_name = 'tracking-reid'
+        self.clipper_conn = register(
+          model_name=self.clipper_model_name, 
+          sess=self.sess, 
+          func=self.run_session,
+        )
         self.log('init')
 
     def PreProcess(self, input):
@@ -73,10 +66,18 @@ class FeatureExtractor:
         self.ds_boxes = [[b['box'][0], b['box'][1], b['box'][2] - b['box'][0], 
                                     b['box'][3] - b['box'][1]] for b in boxes]
 
+    def run_session(self, imgs):
+        img = cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1)
+        return self.encoder(img, self.ds_boxes) 
+
     def Apply(self):
         ''' Extract features and update the tracker 
         ''' 
-        self.features = self.encoder(self.input['img'], self.ds_boxes)
+        self.features = predict(
+            conn=self.clipper_conn, 
+            model_name=self.clipper_model_name, 
+            data=[base64.encodestring(cv2.imencode('.jpg', self.input['img'])[1])],
+        )
 
     def PostProcess(self):
         output = self.input

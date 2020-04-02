@@ -4,19 +4,7 @@ import logging
 
 import base64
 import cv2 
-import json
-import requests
-
-def clipper_query(addr, img):
-    url = "http://%s/track1-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
+from clipper_start import register, predict 
 
 
 GRAPH_PATH = 'checkpoints/ssd_mobilenet_v2_coco_2018_03_29/frozen_inference_graph.pb'
@@ -56,22 +44,23 @@ class TFDetector(object):
             id, label = line.split(' ')
             self.label_mapping[int(id)] = label
 
+        self.clipper_model_name = 'tracking-detection'
+        self.clipper_conn = register(
+          model_name=self.clipper_model_name, 
+          sess=self.session, 
+          func=self.run_session,
+        )
+
         self.log('init')
 
-    def mapping_classes(self, classes):
-        ''' Return the label name of all dets 
-        '''
-        return [[self.label_mapping[i] if i in self.label_mapping 
-                            else str(i) for i in c] for c in classes]
-
-    def detect_images(self, images):
+    def run_session(self, imgs):
         '''
         Runs the object detection on a single image or a batch of images.
         images can be a batch or a single image with batch dimension 1, 
         dims:[None, None, None, 3]
 
         Args:
-        - images: a list of np array images 
+        - imgs: a list of encoded images 
 
         Return:
         - boxes: list of top, left, bottom, right
@@ -83,6 +72,7 @@ class TFDetector(object):
         scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
         classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
         num_detections = self.detection_graph.get_tensor_by_name('num_detections:0')
+        images = np.stack([cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1)], axis=0)
 
         (boxes, scores, classes, num_detections) = self.session.run(
                                         [boxes, scores, classes, num_detections],
@@ -90,13 +80,21 @@ class TFDetector(object):
 
         return boxes, scores, self.mapping_classes(classes)
 
+    def mapping_classes(self, classes):
+        ''' Return the label name of all dets 
+        '''
+        return [[self.label_mapping[i] if i in self.label_mapping 
+                            else str(i) for i in c] for c in classes]
+
     def PreProcess(self, input):
         assert input, "OBJ_DETECTOR: empty input!"
         self.input = input 
 
     def Apply(self):
-        boxes, scores, classes = self.detect_images(
-            np.stack([self.input['img']], axis=0)
+        boxes, scores, classes = predict(
+            conn=self.clipper_conn, 
+            model_name=self.clipper_model_name, 
+            data=[base64.encodestring(cv2.imencode('.jpg', self.input['img'])[1])],
         )
         self.input['meta']['obj'] = []
         for i, b in enumerate(boxes):

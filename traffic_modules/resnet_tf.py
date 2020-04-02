@@ -16,9 +16,6 @@ import cv2
 # IMAGE_SIZE = (12, 8)
 
 import base64
-import cv2 
-import json
-import requests
 from clipper_start import register, predict 
 
 

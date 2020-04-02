@@ -4,11 +4,10 @@ import os
 import time
 from tensorflow.python.framework import tensor_util
 from face_modules.predictor import PosPrediction
-
 import base64
 import cv2
-import json
-import requests
+from clipper_start import register, predict
+
 
 def clipper_query(addr, img):
     url = "http://%s/face2-endpoint/predict" % addr
@@ -41,6 +40,12 @@ class PRNet:
         self.pos_predictor = PosPrediction(self.resolution_inp, self.resolution_op)
         # assert os.path.exists(DEFAULT_MODEL), "model not exists!"
         self.pos_predictor.restore(DEFAULT_MODEL)
+        self.clipper_model_name = 'face-prnet'
+        self.clipper_conn = register(
+          model_name=self.clipper_model_name, 
+          sess=self.pos_predictor.sess, 
+          func=self.run_session,
+        )
 
     def PreProcess(self, prnet_data):
         self.input = prnet_data
@@ -48,8 +53,17 @@ class PRNet:
         self.tform_params = prnet_data["tform_params"]
         self.cropped_image = prnet_data["cropped_image"]
 
+    def run_session(self, imgs):
+        return self.pos_predictor.predict(
+            cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1)
+        )
+
     def Apply(self):
-        self.cropped_pos = self.pos_predictor.predict(self.cropped_image)
+        self.cropped_pos = predict(
+            conn=self.clipper_conn, 
+            model_name=self.clipper_model_name, 
+            data=[base64.encodestring(cv2.imencode('.jpg', self.cropped_image)[1])],
+        )
 
     def PostProcess(self):
         cropped_vertices = np.reshape(self.cropped_pos, [-1, 3]).T

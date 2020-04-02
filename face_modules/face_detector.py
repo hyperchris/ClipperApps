@@ -2,24 +2,8 @@ import numpy as np
 from tensorflow.python.framework import tensor_util
 import cv2
 import tensorflow as tf
-
-
 import base64
-import cv2
-import json
-import requests
-
-def clipper_query(addr, img):
-    url = "http://%s/face1-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
-
+from clipper_start import register, predict 
 
 DEFAULT_MODEL = 'checkpoints/frozen_inference_graph_face.pb'
 
@@ -61,19 +45,35 @@ class FaceDetector:
         self.scores = self.graph.get_tensor_by_name('detection_scores:0')
         self.classes = self.graph.get_tensor_by_name('detection_classes:0')
         self.num_detections = self.graph.get_tensor_by_name('num_detections:0')
+        self.clipper_model_name = 'face-det'
+        self.clipper_conn = register(
+          model_name=self.clipper_model_name, 
+          sess=self.sess, 
+          func=self.run_session,
+        )
+        print('init')
 
     def PreProcess(self, input):
         self.input = input
         self.image = input['img']
-        image_np = cv2.cvtColor(input['img'], cv2.COLOR_BGR2RGB)
-        self.image_np_expanded = np.expand_dims(image_np, axis=0)
         self.frame_height, self.frame_width= self.image.shape[:2]
 
-    def Apply(self):
-        # image_tensor = tf.contrib.util.make_tensor_proto(self.image_np_expanded, shape=list(self.image_np_expanded.shape)) 
-        (boxes, scores, classes, num_detections) = self.sess.run(
+    def run_session(self, imgs):
+        image_np = cv2.cvtColor(
+            cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1), 
+            cv2.COLOR_BGR2RGB
+        )
+        image_np_expanded = np.expand_dims(image_np, axis=0)
+        return self.sess.run(
             [self.boxes, self.scores, self.classes, self.num_detections],
-            feed_dict={self.image_tensor: self.image_np_expanded}
+            feed_dict={self.image_tensor: image_np_expanded}
+        )
+
+    def Apply(self):
+        (boxes, scores, classes, num_detections) = predict(
+            conn=self.clipper_conn, 
+            model_name=self.clipper_model_name, 
+            data=[base64.encodestring(cv2.imencode('.jpg', self.input['img'])[1])],
         )
         self.bbox = find_face_bounding_box(boxes[0], scores[0])
 

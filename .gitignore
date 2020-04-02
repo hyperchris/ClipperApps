@@ -1,5 +1,4 @@
 *.log
 *.pyc
-face_modules/PRNet/Data/*
 __pycache__/*
 

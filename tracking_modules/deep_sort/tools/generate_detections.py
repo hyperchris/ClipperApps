@@ -112,7 +112,7 @@ def create_box_encoder(model_filename, input_name="images",
         image_patches = np.asarray(image_patches)
         return image_encoder(image_patches, batch_size)
 
-    return encoder
+    return encoder, image_encoder.session
 
 
 def generate_detections(encoder, mot_dir, output_dir, detection_dir=None):
