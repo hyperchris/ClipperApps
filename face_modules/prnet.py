@@ -9,18 +9,6 @@ import cv2
 from clipper_start import register, predict
 
 
-def clipper_query(addr, img):
-    url = "http://%s/face2-endpoint/predict" % addr
-    retval, buf = cv2.imencode('.jpg', img)
-    jpg_as_text = base64.b64encode(buf)
-    req_json = json.dumps({
-        "input":
-        jpg_as_text.decode() # bytes to unicode
-    })
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=req_json)
-
-
 DEFAULT_MODEL = 'checkpoints/256_256_resfcn256_weight'
 
 class PRNet:
