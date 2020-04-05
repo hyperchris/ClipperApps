@@ -29,17 +29,19 @@ class FaceDetector:
     def Setup(self):
         # self.graph = load_pb()
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(DEFAULT_MODEL, 'rb') as fid:
-                serialized_graph = fid.read()
-                od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
-        gpu_options = tf.GPUOptions(allow_growth=True)
-        config = tf.ConfigProto(log_device_placement=False, gpu_options=gpu_options)
-        
-        self.sess = tf.Session(graph=self.graph, config=config)
+        with tf.device('/GPU:0'):
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                od_graph_def = tf.GraphDef()
+                with tf.gfile.GFile(DEFAULT_MODEL, 'rb') as fid:
+                    serialized_graph = fid.read()
+                    od_graph_def.ParseFromString(serialized_graph)
+                    tf.import_graph_def(od_graph_def, name='')
+
+            gpu_options = tf.GPUOptions(allow_growth=True)
+            config = tf.ConfigProto(log_device_placement=False, gpu_options=gpu_options)
+            self.sess = tf.Session(graph=self.graph, config=config)
+
         self.image_tensor = self.graph.get_tensor_by_name('image_tensor:0')
         self.boxes = self.graph.get_tensor_by_name('detection_boxes:0')
         self.scores = self.graph.get_tensor_by_name('detection_scores:0')

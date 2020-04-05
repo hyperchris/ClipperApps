@@ -19,15 +19,9 @@ YOLO_MODEL = 'checkpoints/yolo/cfg/yolo.cfg'
 YOLO_WEIGHTS = 'checkpoints/yolo/bin/yolo.weights'
 
 GPU_ID = 0
-GPU_UTIL = 0.5
+GPU_UTIL = 0.4
 YOLO_THRES = 0.2
 YOLO_PEOPLE_LABEL = 'person'
-
-
-import base64
-import cv2
-import json
-import requests
 
 
 class YOLO:
@@ -43,6 +37,7 @@ class YOLO:
                 "threshold": YOLO_THRES
             }
         self.tfnet = TFNet(opt)
+        print('YOLO READY')
 
     def PreProcess(self, input):
         self.input = input 

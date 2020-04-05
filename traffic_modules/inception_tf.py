@@ -34,36 +34,38 @@ class Inception:
         tf.import_graph_def(od_graph_def, name='')
 
     with detection_graph.as_default():
-      config = tf.ConfigProto()
-      config.gpu_options.per_process_gpu_memory_fraction = 0.3
-      self.sess = tf.Session(config = config)
-      ops = tf.get_default_graph().get_operations()
-      all_tensor_names = {output.name for op in ops for output in op.outputs}
-      self.tensor_dict = {}
-      for key in [
-          'num_detections', 'detection_boxes', 'detection_scores',
-          'detection_classes', 'detection_masks'
-      ]:
-        tensor_name = key + ':0'
-        if tensor_name in all_tensor_names:
-          self.tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
-              tensor_name)
-      if 'detection_masks' in self.tensor_dict:
-        # The following processing is only for single image
-        detection_boxes = tf.squeeze(self.tensor_dict['detection_boxes'], [0])
-        detection_masks = tf.squeeze(self.tensor_dict['detection_masks'], [0])
-        # Reframe is required to translate mask from box coordinates to image coordinates and fit the image size.
-        real_num_detection = tf.cast(self.tensor_dict['num_detections'][0], tf.int32)
-        detection_boxes = tf.slice(detection_boxes, [0, 0], [real_num_detection, -1])
-        detection_masks = tf.slice(detection_masks, [0, 0, 0], [real_num_detection, -1, -1])
-        detection_masks_reframed = utils_ops.reframe_box_masks_to_image_masks(
-            detection_masks, detection_boxes, image.shape[1], image.shape[2])
-        detection_masks_reframed = tf.cast(
-            tf.greater(detection_masks_reframed, 0.5), tf.uint8)
-        # Follow the convention by adding back the batch dimension
-        self.tensor_dict['detection_masks'] = tf.expand_dims(
-            detection_masks_reframed, 0)
-      self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
+      with tf.device('/GPU:0'):
+        config = tf.ConfigProto()
+        # config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
+        ops = tf.get_default_graph().get_operations()
+        all_tensor_names = {output.name for op in ops for output in op.outputs}
+        self.tensor_dict = {}
+        for key in [
+            'num_detections', 'detection_boxes', 'detection_scores',
+            'detection_classes', 'detection_masks'
+        ]:
+          tensor_name = key + ':0'
+          if tensor_name in all_tensor_names:
+            self.tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
+                tensor_name)
+        if 'detection_masks' in self.tensor_dict:
+          # The following processing is only for single image
+          detection_boxes = tf.squeeze(self.tensor_dict['detection_boxes'], [0])
+          detection_masks = tf.squeeze(self.tensor_dict['detection_masks'], [0])
+          # Reframe is required to translate mask from box coordinates to image coordinates and fit the image size.
+          real_num_detection = tf.cast(self.tensor_dict['num_detections'][0], tf.int32)
+          detection_boxes = tf.slice(detection_boxes, [0, 0], [real_num_detection, -1])
+          detection_masks = tf.slice(detection_masks, [0, 0, 0], [real_num_detection, -1, -1])
+          detection_masks_reframed = utils_ops.reframe_box_masks_to_image_masks(
+              detection_masks, detection_boxes, image.shape[1], image.shape[2])
+          detection_masks_reframed = tf.cast(
+              tf.greater(detection_masks_reframed, 0.5), tf.uint8)
+          # Follow the convention by adding back the batch dimension
+          self.tensor_dict['detection_masks'] = tf.expand_dims(
+              detection_masks_reframed, 0)
+        self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
     self.clipper_model_name = 'traffic-inception'
     self.clipper_conn = register(
@@ -71,6 +73,7 @@ class Inception:
       sess=self.sess, 
       func=self.run_session,
     )
+    print(self.clipper_model_name, 'READY')
 
   def run_session(self, imgs):
     input = np.expand_dims(cv2.imdecode(np.fromstring(base64.b64decode(imgs[0]), dtype=np.uint8), 1), axis=0)

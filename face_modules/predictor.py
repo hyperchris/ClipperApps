@@ -88,9 +88,10 @@ class PosPrediction():
         self.network = resfcn256(self.resolution_inp, self.resolution_op)
 
         # net forward
-        self.x = tf.placeholder(tf.float32, shape=[None, self.resolution_inp, self.resolution_inp, 3])  
-        self.x_op = self.network(self.x, is_training = False)
-        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True)))
+        with tf.device('/GPU:0'):
+            self.x = tf.placeholder(tf.float32, shape=[None, self.resolution_inp, self.resolution_inp, 3])  
+            self.x_op = self.network(self.x, is_training = False)
+            self.sess = tf.Session(config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True)))
 
     def restore(self, model_path):        
         tf.train.Saver(self.network.vars).restore(self.sess, model_path)

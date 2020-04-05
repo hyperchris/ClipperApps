@@ -28,9 +28,10 @@ class TFDetector(object):
 
         self.detection_graph = detection_graph
 
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        self.session = tf.Session(graph=detection_graph, config=config)
+        with tf.device('/GPU:0'):
+            config = tf.ConfigProto()
+            config.gpu_options.allow_growth = True
+            self.session = tf.Session(graph=detection_graph, config=config)
 
         self.label_mapping = {}
         lines = []
